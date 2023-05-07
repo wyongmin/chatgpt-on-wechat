@@ -64,7 +64,8 @@ class AzureVoice(Voice):
             logger.info("[Azure] voiceToText voice file name={} text={}".format(voice_file, result.text))
             reply = Reply(ReplyType.TEXT, result.text)
         else:
-            logger.error("[Azure] voiceToText error, result={}, canceldetails={}".format(result, result.cancellation_details))
+            cancel_details = result.cancellation_details
+            logger.error("[Azure] voiceToText error, result={}, errordetails={}".format(result, cancel_details.error_details))
             reply = Reply(ReplyType.ERROR, "抱歉，语音识别失败")
         return reply
 
@@ -79,7 +80,8 @@ class AzureVoice(Voice):
                 self.speech_config.speech_synthesis_voice_name = self.config["speech_synthesis_voice_name"]
         else:
             self.speech_config.speech_synthesis_voice_name = self.config["speech_synthesis_voice_name"]
-        fileName = TmpDir().path() + "reply-" + str(int(time.time())) + ".wav"
+        # Avoid the same filename under multithreading
+        fileName = TmpDir().path() + "reply-" + str(int(time.time())) + "-" + str(hash(text) & 0x7FFFFFFF) + ".wav"
         audio_config = speechsdk.AudioConfig(filename=fileName)
         speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=self.speech_config, audio_config=audio_config)
         result = speech_synthesizer.speak_text(text)
@@ -87,6 +89,7 @@ class AzureVoice(Voice):
             logger.info("[Azure] textToVoice text={} voice file name={}".format(text, fileName))
             reply = Reply(ReplyType.VOICE, fileName)
         else:
-            logger.error("[Azure] textToVoice error, result={}, canceldetails={}".format(result, result.cancellation_details))
+            cancel_details = result.cancellation_details
+            logger.error("[Azure] textToVoice error, result={}, errordetails={}".format(result, cancel_details.error_details))
             reply = Reply(ReplyType.ERROR, "抱歉，语音合成失败")
         return reply
